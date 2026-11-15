@@ -1,228 +1,222 @@
-using System;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
+using System.Diagnostics;
 
 namespace ScreenResy
 {
     public partial class MainApp : Form
     {
-        // app info
-        const string AppName = "ScreenResy";
-        const string AppVer = "1.01";
-        const string AppYear = "2023";
-        const string AppAuthor = "Joe Farrell";
-        const string AppAuthorURL = "https://www.linkedin.com/in/joefarrell/";
-
-        // console display
-        [DllImport("kernel32.dll")]
-        private static extern bool AttachConsole(int dwProcessId);
-        private const int ATTACH_PARENT_PROCESS = -1;
-
-        // COMMANDLINE Arguments
-        [STAThread]
-        static void Main(string[] args)
+        private sealed record Choice<T>(string Text, T Value)
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-
-            if (args.Length > 0)
-            {
-                AttachConsole(ATTACH_PARENT_PROCESS);
-                Console.Write($"");
-                Console.WriteLine($"\n{AppName} version {AppVer} Copyright (C) {AppYear} by {AppAuthor} : {AppAuthorURL}");
-
-                if (!HandleCommandLineArguments(args))
-                {
-                    ShowUsageInstructions();
-                    SendKeys.SendWait("{ENTER}");
-                }
-            }
-            else
-            {
-                Application.Run(new MainApp());
-            }
+            public override string ToString() => Text;
         }
 
-        static bool HandleCommandLineArguments(string[] args)
-        {
-            int width = 0, height = 0, dpi = 0;
-            bool widthSet = false, heightSet = false, dpiSet = false;
-
-            for (int i = 0; i < args.Length; i++)
-            {
-                switch (args[i])
-                {
-                    case "-x":
-                        if (i + 1 < args.Length && int.TryParse(args[++i], out width)) widthSet = true;
-                        break;
-                    case "-y":
-                        if (i + 1 < args.Length && int.TryParse(args[++i], out height)) heightSet = true;
-                        break;
-                    case "-d":
-                        if (i + 1 < args.Length && int.TryParse(args[++i], out dpi)) dpiSet = true;
-                        break;
-                }
-            }
-
-            if (widthSet && heightSet)
-            {
-                MainApp.SetResolution(width, height);
-                Console.WriteLine($"Resolution set to {width}x{height}");
-            }
-
-            if (dpiSet)
-            {
-                MainApp.SetDpiScaling(dpi);
-                Console.WriteLine($"DPI Scaling set to {dpi}%");
-            }
-
-            SendKeys.SendWait("{ENTER}"); // exit app
-
-            return widthSet && heightSet && dpiSet;
-        }
-
-        static void ShowUsageInstructions()
-        {
-            Console.WriteLine("Invalid arguments. Usage:");
-            Console.WriteLine("ScreenResy.exe -x [width] -y [height] -d [dpi]");
-            Console.WriteLine("Example: ScreenResy.exe -x 1920 -y 1080 -d 125");
-        }
-
-        // DPI Scaling
-        [DllImport("user32.dll", SetLastError = true)]
-        static extern bool SystemParametersInfo(uint uiAction, uint uiParam, ref int pvParam, uint fWinIni);
-
-        const uint SPI_GETLOGICALDPIOVERRIDE = 0x009E;
-        const uint SPI_SETLOGICALDPIOVERRIDE = 0x009F;
-        const uint SPIF_UPDATEINIFILE = 0x01;
-        const uint SPIF_SENDCHANGE = 0x02;
-
-        static readonly uint[] DpiVals = { 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500 };
-
-        // Screen Resolution
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-        public struct DEVMODE
-        {
-            private const int CCHDEVICENAME = 32;
-            private const int CCHFORMNAME = 32;
-
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = CCHDEVICENAME)]
-            public string dmDeviceName;
-            public short dmSpecVersion;
-            public short dmDriverVersion;
-            public short dmSize;
-            public short dmDriverExtra;
-            public int dmFields;
-
-            public int dmPositionX;
-            public int dmPositionY;
-            public int dmDisplayOrientation;
-            public int dmDisplayFixedOutput;
-
-            public short dmColor;
-            public short dmDuplex;
-            public short dmYResolution;
-            public short dmTTOption;
-            public short dmCollate;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = CCHFORMNAME)]
-            public string dmFormName;
-            public short dmLogPixels;
-            public int dmBitsPerPel;
-            public int dmPelsWidth;
-            public int dmPelsHeight;
-
-            public int dmDisplayFlags;
-            public int dmDisplayFrequency;
-
-            public int dmICMMethod;
-            public int dmICMIntent;
-            public int dmMediaType;
-            public int dmDitherType;
-            public int dmReserved1;
-            public int dmReserved2;
-
-            public int dmPanningWidth;
-            public int dmPanningHeight;
-
-            public const int DM_PELSWIDTH = 0x80000;
-            public const int DM_PELSHEIGHT = 0x100000;
-        }
-
-        [DllImport("user32.dll")]
-        public static extern int ChangeDisplaySettings(ref DEVMODE devMode, int flags);
+        private IReadOnlyList<DisplayMode> modes = [];
+        private bool loading;
 
         public MainApp()
         {
             InitializeComponent();
+
+            Text = $"{AppInfo.Name} {AppInfo.Version}";
+            labelAbout.Text = $"{AppInfo.Name} {AppInfo.Version}  ·  {AppInfo.Copyright.Replace("(C)", "©")}";
+            linkAuthor.Text = AppInfo.AuthorUrl;
+
+            LoadDisplays(selectDeviceName: null);
         }
 
-        public static void SetResolution(int width, int height)
+        private Display? SelectedDisplay => (comboDisplay.SelectedItem as Choice<Display>)?.Value;
+
+        /// <summary>Fills the display list, then the settings of the selected display.</summary>
+        private void LoadDisplays(string? selectDeviceName)
         {
-            DEVMODE vDevMode = new DEVMODE
+            loading = true;
+            try
             {
-                dmDeviceName = new string(new char[32]),
-                dmFormName = new string(new char[32]),
-                dmSize = (short)Marshal.SizeOf(typeof(DEVMODE)),
-                dmPelsWidth = width,
-                dmPelsHeight = height,
-                dmFields = DEVMODE.DM_PELSWIDTH | DEVMODE.DM_PELSHEIGHT
-            };
+                comboDisplay.Items.Clear();
+                IReadOnlyList<Display> displays = Display.GetAll();
+                foreach (Display display in displays)
+                    comboDisplay.Items.Add(new Choice<Display>(display.ToString(), display));
 
-            ChangeDisplaySettings(ref vDevMode, 0);
-        }
-
-        private void buttonChangeResolution_Click(object sender, EventArgs e)
-        {
-            SetResolution(int.Parse(textBoxXRes.Text), int.Parse(textBoxYRes.Text)); // Set to desired resolution
-        }
-
-        private void buttonChangeScale_Click(object sender, EventArgs e)
-        {
-            int dpiPercentage = int.Parse(textBoxScale.Text); // % scaling
-            SetDpiScaling(dpiPercentage);
-        }
-
-        private static void SetDpiScaling(int percentScaleToSet)
-        {
-            int recommendedDpiScale = GetRecommendedDPIScaling();
-            if (recommendedDpiScale > 0)
+                Display selected = displays.FirstOrDefault(d => d.DeviceName == selectDeviceName)
+                    ?? displays.FirstOrDefault(d => d.IsPrimary)
+                    ?? displays[0];
+                Select(comboDisplay, selected);
+            }
+            catch (DisplayException ex)
             {
-                int index = 0, recIndex = 0, setIndex = 0;
-                foreach (var scale in DpiVals)
+                ShowError(ex.Message);
+            }
+            finally
+            {
+                loading = false;
+            }
+
+            LoadSettings();
+        }
+
+        /// <summary>Shows what the selected display supports, with its current settings selected.</summary>
+        private void LoadSettings()
+        {
+            Display? display = SelectedDisplay;
+            comboResolution.Items.Clear();
+            comboRefresh.Items.Clear();
+            comboScale.Items.Clear();
+            labelCurrent.Text = "";
+            buttonApply.Enabled = false;
+            if (display is null)
+                return;
+
+            loading = true;
+            try
+            {
+                DisplayMode current = display.GetCurrentMode();
+                modes = display.GetModes();
+                string summary = $"Current:  {current.Width} × {current.Height},  {current.Frequency} Hz";
+
+                foreach (var (width, height) in modes.Select(m => (m.Width, m.Height)).Distinct())
+                    comboResolution.Items.Add(new Choice<Size>($"{width} × {height}", new Size(width, height)));
+                Select(comboResolution, new Size(current.Width, current.Height));
+                LoadRefreshRates(current.Frequency);
+
+                // Scale comes from an undocumented part of Windows, so the rest must work without it.
+                try
                 {
-                    if (recommendedDpiScale == scale)
-                    {
-                        recIndex = index;
-                    }
-                    if (percentScaleToSet == scale)
-                    {
-                        setIndex = index;
-                    }
-                    index++;
+                    ScaleInfo scale = display.GetScale();
+                    foreach (int percent in scale.Supported)
+                        comboScale.Items.Add(new Choice<int>(percent == scale.Recommended ? $"{percent}% (recommended)" : $"{percent}%", percent));
+                    Select(comboScale, scale.Current);
+                    summary += $",  {scale.Current}%";
+                }
+                catch (DisplayException)
+                {
+                }
+                comboScale.Enabled = comboScale.Items.Count > 0;
+
+                labelCurrent.Text = summary;
+                buttonApply.Enabled = comboResolution.SelectedItem is not null;
+            }
+            catch (DisplayException ex)
+            {
+                ShowError(ex.Message);
+            }
+            finally
+            {
+                loading = false;
+            }
+        }
+
+        /// <summary>Lists the refresh rates of the selected resolution, keeping the preferred one if it has it.</summary>
+        private void LoadRefreshRates(int preferred)
+        {
+            comboRefresh.Items.Clear();
+            if (comboResolution.SelectedItem is not Choice<Size> resolution)
+                return;
+
+            foreach (DisplayMode mode in modes.Where(m => m.Width == resolution.Value.Width && m.Height == resolution.Value.Height))
+                comboRefresh.Items.Add(new Choice<int>($"{mode.Frequency} Hz", mode.Frequency));
+
+            Select(comboRefresh, preferred);
+            if (comboRefresh.SelectedItem is null && comboRefresh.Items.Count > 0)
+                comboRefresh.SelectedIndex = 0; // the highest
+        }
+
+        private static void Select<T>(ComboBox combo, T value)
+        {
+            combo.SelectedItem = combo.Items.OfType<Choice<T>>().FirstOrDefault(c => EqualityComparer<T>.Default.Equals(c.Value, value));
+        }
+
+        private void comboDisplay_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            if (!loading)
+                LoadSettings();
+        }
+
+        private void comboResolution_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            if (loading)
+                return;
+
+            int preferred = (comboRefresh.SelectedItem as Choice<int>)?.Value ?? 0;
+            LoadRefreshRates(preferred);
+        }
+
+        private void buttonApply_Click(object? sender, EventArgs e)
+        {
+            if (SelectedDisplay is not Display display
+                || comboResolution.SelectedItem is not Choice<Size> resolution
+                || comboRefresh.SelectedItem is not Choice<int> refresh)
+                return;
+
+            var mode = new DisplayMode(resolution.Value.Width, resolution.Value.Height, refresh.Value);
+            int? scale = (comboScale.SelectedItem as Choice<int>)?.Value;
+
+            try
+            {
+                Apply(display, mode, scale);
+            }
+            catch (DisplayException ex)
+            {
+                ShowError(ex.Message);
+            }
+
+            LoadDisplays(display.DeviceName);
+        }
+
+        private void Apply(Display display, DisplayMode mode, int? scale)
+        {
+            DisplayMode previousMode = display.GetCurrentMode();
+            int? previousScale = scale is null ? null : display.GetScale().Current;
+            bool changeMode = mode != previousMode;
+            bool changeScale = scale != previousScale;
+
+            if (!changeMode)
+            {
+                if (changeScale)
+                    display.SetScale(scale!.Value);
+                return;
+            }
+
+            // The new mode is applied without being saved. If the monitor can't show it, nobody can
+            // confirm it, and restoring the saved mode puts the picture back.
+            display.SetMode(mode.Width, mode.Height, mode.Frequency, persist: false);
+            bool scaleChanged = false;
+            bool keep = false;
+            try
+            {
+                if (changeScale)
+                {
+                    display.SetScale(scale!.Value);
+                    scaleChanged = true;
                 }
 
-                int relativeIndex = setIndex - recIndex;
-                SystemParametersInfo(SPI_SETLOGICALDPIOVERRIDE, (uint)relativeIndex, ref relativeIndex, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+                using var confirm = new KeepChangesDialog();
+                keep = confirm.ShowDialog(this) == DialogResult.OK;
+                if (keep)
+                    display.SetMode(mode.Width, mode.Height, mode.Frequency, persist: true);
             }
-        }
-
-        private static int GetRecommendedDPIScaling()
-        {
-            int dpi = 0;
-            bool retval = SystemParametersInfo(SPI_GETLOGICALDPIOVERRIDE, 0, ref dpi, 0);
-
-            if (retval)
+            finally
             {
-                int currDPI = (int)DpiVals[dpi * -1];
-                return currDPI;
+                if (!keep)
+                {
+                    display.RestoreSavedMode();
+                    if (scaleChanged)
+                        display.SetScale(previousScale!.Value);
+                }
             }
-
-            return -1;
         }
 
-        private void buttonExit_Click(object sender, EventArgs e)
+        private void ShowError(string message)
         {
-            Application.Exit();
+            MessageBox.Show(this, message, AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+
+        private void linkAuthor_LinkClicked(object? sender, LinkLabelLinkClickedEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo(AppInfo.AuthorUrl) { UseShellExecute = true });
+        }
+
+        private void buttonClose_Click(object? sender, EventArgs e)
+        {
+            Close();
         }
     }
 }
