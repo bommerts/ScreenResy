@@ -21,8 +21,8 @@ Get the latest version from the [Releases](https://github.com/bommerts/ScreenRes
 
 | Download | Size | Needs |
 | --- | --- | --- |
-| `ScreenResy-<version>-win-x64-self-contained.zip` | about 49 MB | Nothing. Pick this one if you are unsure. |
-| `ScreenResy-<version>-win-x64.zip` | about 0.2 MB | The [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0). |
+| `ScreenResy-<version>-win-x64-self-contained.zip` | about 44 MB | Nothing. Pick this one if you are unsure. |
+| `ScreenResy-<version>-win-x64.zip` | about 0.1 MB | The [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0). |
 
 If the small version does nothing when you start it, the runtime is missing. Start it from a terminal to see the message, or use the self-contained version.
 
