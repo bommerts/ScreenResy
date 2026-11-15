@@ -1,8 +1,16 @@
 # ScreenResy
 
-Change screen resolution, refresh rate and scale from a small window or from the command line.
+Change a Windows display's resolution, refresh rate and scale, from a small window or from the command line.
 
-This is a small utility I wrote to quickly change display resolution and scale.
+ScreenResy is a single 160 KB program written in C. There is nothing to install and nothing it depends on: download it and run it. It works on Windows 10 and Windows 11.
+
+- **One step.** Set resolution, refresh rate and scale together in one command, so a shortcut or a hotkey can switch your whole setup.
+- **Only what your display can do.** The window lists the modes and scales your display supports, and the command line refuses anything else and says why.
+- **No blank screens.** After a mode change the window asks whether to keep it, and puts the old settings back by itself if you don't answer.
+- **Any display.** Works on the primary display or any other one you pick.
+- **Made for scripts.** Plain text output and exit codes a script can check.
+
+## Why I wrote it
 
 Typically I run my monitor at 4096x2160 with 150% scale. However, while coding WinForms apps on a large monitor, it helps to write code in 100% scale. While coding I prefer to run my monitor at 3000 x 1700 with 100% scale.
 
@@ -17,7 +25,7 @@ Put each line in a shortcut and switching is one click or one hotkey.
 
 ## Download
 
-Get the latest version from the [Releases](https://github.com/bommerts/ScreenResy/releases) page. It is a single portable `ScreenResy.exe` of about 160 KB. There is nothing to install and nothing else it needs.
+Get `ScreenResy.exe` from the [latest release](https://github.com/bommerts/ScreenResy/releases/latest). It is portable: put it anywhere and run it.
 
 Works on Windows 10 and Windows 11 (64-bit).
 
