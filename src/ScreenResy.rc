@@ -1,0 +1,69 @@
+#include <windows.h>
+#include "resource.h"
+#include "version.h"
+
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"
+
+// Sizes are in dialog units, which follow the font, so Windows scales both dialogs to the
+// display they are on.
+
+IDD_MAIN DIALOGEX 0, 0, 214, 172
+STYLE DS_SHELLFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX
+CAPTION "ScreenResy"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT           "&Display:", -1, 7, 9, 52, 8
+    COMBOBOX        IDC_DISPLAY, 62, 7, 145, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Resolution:", -1, 7, 27, 52, 8
+    COMBOBOX        IDC_RESOLUTION, 62, 25, 145, 300, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Re&fresh rate:", -1, 7, 45, 52, 8
+    COMBOBOX        IDC_REFRESH, 62, 43, 145, 300, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Scale:", -1, 7, 63, 52, 8
+    COMBOBOX        IDC_SCALE, 62, 61, 145, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "", IDC_CURRENT, 7, 80, 200, 8
+    DEFPUSHBUTTON   "&Apply", IDOK, 103, 94, 50, 14
+    PUSHBUTTON      "Close", IDCANCEL, 157, 94, 50, 14
+    CONTROL         "", -1, "Static", SS_ETCHEDHORZ, 7, 115, 200, 1
+    LTEXT           "Command line:  ScreenResy -x 1920 -y 1080 -d 125\nRun  ScreenResy --help  for every option.", -1, 7, 121, 200, 17
+    LTEXT           "", IDC_ABOUT, 7, 144, 200, 8
+    CONTROL         "", IDC_AUTHOR, "SysLink", WS_TABSTOP, 7, 155, 200, 10
+END
+
+// Revert comes first so it has the focus: a stray Enter should undo the change, not confirm it.
+// No close box; Esc reverts.
+IDD_KEEP DIALOGEX 0, 0, 220, 54
+STYLE DS_SHELLFONT | DS_CENTER | DS_MODALFRAME | WS_POPUP | WS_CAPTION
+EXSTYLE WS_EX_TOPMOST
+CAPTION "Keep these display settings?"
+FONT 9, "Segoe UI"
+BEGIN
+    DEFPUSHBUTTON   "&Revert", IDCANCEL, 99, 33, 50, 14
+    PUSHBUTTON      "&Keep changes", IDOK, 153, 33, 60, 14
+    LTEXT           "", IDC_COUNTDOWN, 7, 9, 206, 16
+END
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     APP_VERSION_NUMBERS
+PRODUCTVERSION  APP_VERSION_NUMBERS
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName", "Joe Farrell"
+            VALUE "FileDescription", "ScreenResy"
+            VALUE "FileVersion", APP_VERSION
+            VALUE "InternalName", "ScreenResy"
+            VALUE "LegalCopyright", APP_COPYRIGHT
+            VALUE "OriginalFilename", "ScreenResy.exe"
+            VALUE "ProductName", "ScreenResy"
+            VALUE "ProductVersion", APP_VERSION
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 0x04B0
+    END
+END

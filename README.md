@@ -17,16 +17,9 @@ Put each line in a shortcut and switching is one click or one hotkey.
 
 ## Download
 
-Get the latest version from the [Releases](https://github.com/bommerts/ScreenResy/releases) page. There are two downloads; both are a single portable `ScreenResy.exe` with nothing to install.
+Get the latest version from the [Releases](https://github.com/bommerts/ScreenResy/releases) page. It is a single portable `ScreenResy.exe` of about 160 KB. There is nothing to install and nothing else it needs.
 
-| Download | Size | Needs |
-| --- | --- | --- |
-| `ScreenResy-<version>-win-x64-self-contained.zip` | about 44 MB | Nothing. Pick this one if you are unsure. |
-| `ScreenResy-<version>-win-x64.zip` | about 0.1 MB | The [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0). |
-
-If the small version does nothing when you start it, the runtime is missing. Start it from a terminal to see the message, or use the self-contained version.
-
-Works on Windows 10 and Windows 11.
+Works on Windows 10 and Windows 11 (64-bit).
 
 ## The window
 
@@ -75,7 +68,14 @@ Changes made from the command line are saved, so they survive a restart. Nothing
 - **Before Windows 11 24H2**, a console window flashes briefly when you open the ScreenResy window from Explorer. Newer versions of Windows don't show it.
 - In a terminal, `ScreenResy` with no arguments opens the window and the terminal waits until you close it.
 
-## What's new in 2.0
+## What's new
+
+### 3.0
+
+- Rewritten in C against the Windows API. ScreenResy no longer needs .NET: the download went from 44 MB to about 160 KB, and it starts several times faster.
+- Everything else works as in 2.0.
+
+### 2.0
 
 - Lists of supported resolutions, refresh rates and scales instead of free-text boxes, showing the current settings.
 - Keep-or-revert confirmation after a mode change.
@@ -84,26 +84,30 @@ Changes made from the command line are saved, so they survive a restart. Nothing
 - `--list`, `--help` and `--version`.
 - Resolution, scale and refresh rate can each be set alone. In 1.01, giving only some of them made the change and then reported "Invalid arguments".
 - Clear error messages and exit codes. 1.01 reported success even when Windows refused the change, and crashed on non-numeric input in the window.
-- A scale Windows doesn't offer (say 110) is refused. 1.01 silently set 100% instead.
+- A scale Windows doesn't offer (say 110) is refused. 1.01 silently set 100%.
 - No longer sends an Enter keystroke to whichever window has the focus after a command-line run.
 - Resolution changes from the command line now survive a restart, as scale changes always did.
 - Sharp at every display scale.
-- Runs on .NET 10. 1.01 needed .NET 7, which is no longer supported.
 
 ## Building
 
-Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+ScreenResy is plain C (C11) and uses only the Windows API. Building it needs [CMake](https://cmake.org/download/) and Visual Studio with the "Desktop development with C++" workload.
 
 ```
-dotnet build -c Release
+cmake -S . -B build -A x64
+cmake --build build --config Release
 ```
 
-The release downloads are made with:
+The result is `build/Release/ScreenResy.exe`. Visual Studio can also open the folder directly.
 
-```
-dotnet publish ScreenResy/ScreenResy.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none
-dotnet publish ScreenResy/ScreenResy.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none
-```
+| File | Contents |
+| --- | --- |
+| `src/main.c` | Entry point: window with no arguments, command line otherwise. |
+| `src/display.c` | Reads and changes resolution, refresh rate and scale. |
+| `src/commandline.c` | The command line. |
+| `src/window.c` | The window and the keep-or-revert dialog. |
+| `src/ScreenResy.rc` | Dialog layouts, version information and the manifest. |
+| `src/version.h` | The version number. |
 
 ## License
 
